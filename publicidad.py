@@ -4,7 +4,7 @@ from common import inject_css, render_footer
 
 inject_css()
 
-st.title("🖼️ Publicidad")
+st.title("ℹ️ Información")
 
 st.markdown(
     """
@@ -24,6 +24,7 @@ st.markdown(
         Somos asesores financieros y hemos desarrollado esta herramienta con el objetivo de ayudarte a conseguir
         la mejor hipoteca en las mejores condiciones, analizando cada detalle de forma clara y transparente.
         <br/><br/>
+
         Si necesitas asesoramiento financiero, no dudes en contactar con nuestro equipo. El asesoramiento es
         <strong>totalmente gratuito y sin compromiso</strong>. Podemos ayudarte a:
         <ul style="margin:.55rem 0 .55rem 1.2rem;">
@@ -32,8 +33,10 @@ st.markdown(
           <li>Buscar la mejor hipoteca (incluso hasta el 100% de financiación, si aplica)</li>
           <li>Mejorar tus seguros vinculados o compararlos con alternativas</li>
         </ul>
+
         También estamos abiertos a sugerencias, mejoras y colaboraciones.
         <br/><br/>
+
         <strong>Para más información, contacta con:</strong>
         <a href="mailto:alejandro.gordo@nnespana.com">alejandro.gordo@nnespana.com</a>
       </div>
@@ -41,9 +44,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
-st.image("publi.jpg", use_container_width=True)
-st.markdown("</div>", unsafe_allow_html=True)
 
 render_footer()
