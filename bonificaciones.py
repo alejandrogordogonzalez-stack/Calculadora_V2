@@ -15,42 +15,6 @@ inject_css()
 
 st.title("🎁 Estudio de Bonificaciones")
 
-# ---------------------------------------------------------
-# Helper local: sincroniza capital entre inputs (Banco/NN)
-# ---------------------------------------------------------
-def _sync_capital_inputs(bank_key: str, nn_key: str):
-    """
-    Sincroniza st.session_state[bank_key] y st.session_state[nn_key] según cuál haya cambiado
-    respecto a su valor previo. Si sincroniza, fuerza st.rerun() para reflejar el cambio.
-    """
-    # Valores actuales (raw string en el text_input interno de euro_input)
-    curr_bank = st.session_state.get(bank_key, "")
-    curr_nn = st.session_state.get(nn_key, "")
-
-    # Valores previos guardados
-    prev_bank = st.session_state.get(f"_prev_{bank_key}", curr_bank)
-    prev_nn = st.session_state.get(f"_prev_{nn_key}", curr_nn)
-
-    did_sync = False
-
-    # Caso 1: cambió Banco y NN no cambió -> copiar Banco -> NN
-    if curr_bank != prev_bank and curr_nn == prev_nn:
-        st.session_state[nn_key] = curr_bank
-        did_sync = True
-
-    # Caso 2: cambió NN y Banco no cambió -> copiar NN -> Banco
-    elif curr_nn != prev_nn and curr_bank == prev_bank:
-        st.session_state[bank_key] = curr_nn
-        did_sync = True
-
-    # Actualiza previos (para próximos reruns)
-    st.session_state[f"_prev_{bank_key}"] = st.session_state.get(bank_key, "")
-    st.session_state[f"_prev_{nn_key}"] = st.session_state.get(nn_key, "")
-
-    if did_sync:
-        st.rerun()
-
-
 st.markdown(
     """
     <div class="param-header">
@@ -64,7 +28,7 @@ st.markdown(
 )
 
 with st.form("params_form_bonif", clear_on_submit=False):
-    c1, c2, c3, c4 = st.columns([1.2, 1, 1, 1])
+    c1, c2, c3, c4, c5 = st.columns([1.3, 1, 1, 1, 0.9])
     with c1:
         principal_b = euro_input(
             "Importe a financiar (Cantidad solicitada) (€)",
@@ -85,6 +49,12 @@ with st.form("params_form_bonif", clear_on_submit=False):
             "Mes de inicio (agrupación anual)",
             options=list(range(1, 13)), index=0, format_func=lambda m: f"{m:02d}", key="m_bon"
         )
+    with c5:
+        edad_hipoteca = st.number_input(
+            "Edad (años)",
+            min_value=0, max_value=99, value=30, step=1, key="edad_bon"
+        )
+
     _ = st.form_submit_button("✅ Aplicar parámetros")
 
 n_months_b = years_b * 12
@@ -97,10 +67,11 @@ if df_base.empty:
 
 monthly_payment_base = float(df_base["Cuota"].iloc[0])
 
-m1c, m2c, m3c = st.columns(3)
+m1c, m2c, m3c, m4c = st.columns(4)
 m1c.metric("💳 Cuota mensual (sin bonificar)", eur(monthly_payment_base))
 m2c.metric("📌 TIN anual (sin bonificar)", f"{annual_rate_pct_b:.2f} %")
 m3c.metric("🗓️ Nº de cuotas (meses)", f"{n_months_b}")
+m4c.metric("👤 Edad usada en primas", f"{int(edad_hipoteca)}")
 
 st.divider()
 
@@ -167,7 +138,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ✅ Sin recuadro verde: al nivel del resto
 a1, a2, a3 = st.columns(3)
 a1.metric("💳 Cuota mensual (bonificada)", eur(monthly_payment_bon), delta=eur(-ahorro_cuota_mes))
 a2.metric("🧾 Ahorro mensual", eur(ahorro_cuota_mes))
@@ -221,11 +191,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Defaults de capital (si no existía aún)
-if "capital_ing_prima_eur" not in st.session_state:
-    st.session_state["capital_ing_prima_eur"] = "100.000"
-if "capital_nn_prima_eur" not in st.session_state:
-    st.session_state["capital_nn_prima_eur"] = "100.000"
+# ✅ Ahora las primas usan:
+# - Edad: la de "Mi hipoteca"
+# - Capital: el "Importe a financiar"
+edad_primas = int(edad_hipoteca)
+capital_primas = float(principal_b)
 
 col_left, col_right = st.columns(2, gap="large")
 
@@ -244,21 +214,15 @@ with col_left:
         unsafe_allow_html=True
     )
 
-    cP1, cP2 = st.columns(2)
-    with cP1:
-        edad_ing = st.number_input(
-            "Edad (años) — Banco",
-            min_value=0, max_value=99, value=30, step=1, key="edad_ing_prima"
-        )
-    with cP2:
-        capital_ing = euro_input(
-            "Capital a cubrir (€) — Banco",
-            key="capital_ing_prima_eur",
-            default=100000.0,
-            decimals=0,
-            min_value=0.0,
-            max_value=1000000.0
-        )
+    st.markdown(
+        f"""
+        <div class="soft-box" style="margin-top:.5rem;">
+          <div class="prime-note"><strong>Edad:</strong> {edad_primas} años</div>
+          <div class="prime-note"><strong>Capital:</strong> {eur(capital_primas)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ===== DERECHA: ASEGURADORA (NN) =====
 with col_right:
@@ -274,26 +238,17 @@ with col_right:
         unsafe_allow_html=True
     )
 
-    r1, r2 = st.columns(2)
-    with r1:
-        edad_nn = st.number_input(
-            "Edad (años) — Aseguradora",
-            min_value=0, max_value=99, value=30, step=1, key="edad_nn_prima"
-        )
-    with r2:
-        capital_nn = euro_input(
-            "Capital a cubrir (€) — Aseguradora",
-            key="capital_nn_prima_eur",
-            default=100000.0,
-            decimals=0,
-            min_value=0.0,
-            max_value=1000000.0
-        )
+    st.markdown(
+        f"""
+        <div class="soft-box" style="margin-top:.5rem;">
+          <div class="prime-note"><strong>Edad:</strong> {edad_primas} años</div>
+          <div class="prime-note"><strong>Capital:</strong> {eur(capital_primas)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-# ✅ Sincroniza capital entre ambos inputs (Banco <-> Aseguradora)
-_sync_capital_inputs("capital_ing_prima_eur", "capital_nn_prima_eur")
-
-# Ahora sí: radio + cálculo de primas (después de sync)
+# Radio + cálculo de primas
 cobertura = st.radio(
     "Cobertura",
     options=["Fallecimiento", "Fallecimiento + Invalidez Absoluta"],
@@ -301,35 +256,35 @@ cobertura = st.radio(
     key="cobertura_nn"
 )
 
-# Calcula prima ING (con capital/edad banco)
+# Calcula prima ING (banco)
+prima_ing = None
 with col_left:
-    if capital_ing > 400000 or edad_ing > 65:
+    if capital_primas > 400000 or edad_primas > 65:
         st.warning("⚠️ Nota: cálculos orientativos; pueden no ser acordes a partir de 400.000 € y edades > 65.")
 
-    if edad_ing <= 0 or capital_ing <= 0:
+    if edad_primas <= 0 or capital_primas <= 0:
         st.info("Introduce una edad y un capital válidos para obtener la prima orientativa.")
-        prima_ing = None
     else:
-        prima_ing = prima_orientativa_bilineal(float(edad_ing), float(capital_ing), PRIMA_ING_DF)
+        prima_ing = prima_orientativa_bilineal(float(edad_primas), float(capital_primas), PRIMA_ING_DF)
         st.metric("🧾 Prima orientativa (mensual) — Banco", eur(prima_ing))
 
     st.caption(
         "Primas orientativas calculadas a 03/12/2025, como ejemplo real de primas de hipotecas con el seguro de ING."
     )
 
-# Calcula prima NN (con capital/edad aseguradora)
+# Calcula prima NN (aseguradora)
+prima_nn = None
 with col_right:
-    prima_nn = None
-    if edad_nn <= 0 or capital_nn <= 0:
+    if edad_primas <= 0 or capital_primas <= 0:
         st.info("Introduce una edad y un capital válidos para obtener la prima orientativa.")
     else:
-        if cobertura == "Fallecimiento + Invalidez Absoluta" and edad_nn >= 60:
+        if cobertura == "Fallecimiento + Invalidez Absoluta" and edad_primas >= 60:
             st.warning("⚠️ Algunas aseguradoras no permiten Invalidez Absoluta a partir de 60 años.")
             st.info("Selecciona 'Fallecimiento' o reduce la edad para ver una prima orientativa con IA.")
         else:
             NN_FALLEC_DF, NN_FALL_IA_DF = get_nn_dfs()
             tabla_df = NN_FALL_IA_DF if cobertura == "Fallecimiento + Invalidez Absoluta" else NN_FALLEC_DF
-            prima_nn = prima_orientativa_bilineal(float(edad_nn), float(capital_nn), tabla_df)
+            prima_nn = prima_orientativa_bilineal(float(edad_primas), float(capital_primas), tabla_df)
             st.metric("🧾 Prima orientativa (mensual) — Aseguradora", eur(prima_nn))
 
     st.caption(
@@ -348,15 +303,11 @@ monthly_payment_only_vida = float(df_only_vida["Cuota"].iloc[0]) if not df_only_
 ahorro_vida_mes = monthly_payment_base - monthly_payment_only_vida
 ahorro_vida_anual = ahorro_vida_mes * 12
 
-# Para comparar primas: usamos capital/edad de la derecha (aseguradora)
-prima_ing_comp = None
-if edad_nn > 0 and capital_nn > 0:
-    prima_ing_comp = prima_orientativa_bilineal(float(edad_nn), float(capital_nn), PRIMA_ING_DF)
-
+# Ahorro por cambio de aseguradora (prima): ING - NN (mismas edad/capital)
 ahorro_cambio_aseg_mes = None
 ahorro_cambio_aseg_anual = None
-if (prima_ing_comp is not None) and (prima_nn is not None):
-    ahorro_cambio_aseg_mes = float(prima_ing_comp - prima_nn)
+if (prima_ing is not None) and (prima_nn is not None):
+    ahorro_cambio_aseg_mes = float(prima_ing - prima_nn)
     ahorro_cambio_aseg_anual = ahorro_cambio_aseg_mes * 12
 
 # Neto: ahorro por prima (banco->aseguradora) - ahorro por bonificación de vida (si pierdes bonificación)
@@ -397,7 +348,7 @@ with s2:
             <div class="soft-box">
               <div class="value-title">🔁 Ahorro por cambio de aseguradora (prima)</div>
               <div class="value-big">—</div>
-              <div class="prime-note">Introduce valores válidos en el bloque de Aseguradora.</div>
+              <div class="prime-note">No hay prima válida en Aseguradora (p.ej. IA con edad ≥ 60).</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -427,7 +378,6 @@ with s3:
             unsafe_allow_html=True
         )
     else:
-        # ✅ CAMBIO PEDIDO: arriba grande el anual, abajo pequeño el mensual
         st.markdown(
             f"""
             <div class="highlight-total">
