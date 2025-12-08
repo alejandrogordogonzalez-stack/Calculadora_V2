@@ -28,7 +28,7 @@ st.markdown(
 )
 
 with st.form("params_form_bonif", clear_on_submit=False):
-    c1, c2, c3, c4, c5 = st.columns([1.3, 1, 1, 1, 0.9])
+    c1, c2, c3, c4, c5 = st.columns([1.25, 1, 1, 1, 0.9])
     with c1:
         principal_b = euro_input(
             "Importe a financiar (Cantidad solicitada) (€)",
@@ -67,12 +67,12 @@ if df_base.empty:
 
 monthly_payment_base = float(df_base["Cuota"].iloc[0])
 
-m1c, m2c, m3c, m4c = st.columns(4)
+m1c, m2c, m3c = st.columns(3)
 m1c.metric("💳 Cuota mensual (sin bonificar)", eur(monthly_payment_base))
 m2c.metric("📌 TIN anual (sin bonificar)", f"{annual_rate_pct_b:.2f} %")
 m3c.metric("🗓️ Nº de cuotas (meses)", f"{n_months_b}")
-m4c.metric("👤 Edad usada en primas", f"{int(edad_hipoteca)}")
 
+st.caption(f"Edad usada para cálculo de primas: **{int(edad_hipoteca)}** años.")
 st.divider()
 
 st.markdown(
@@ -191,9 +191,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ✅ Ahora las primas usan:
-# - Edad: la de "Mi hipoteca"
-# - Capital: el "Importe a financiar"
+# ✅ Primas usan los datos del primer bloque
 edad_primas = int(edad_hipoteca)
 capital_primas = float(principal_b)
 
@@ -224,6 +222,20 @@ with col_left:
         unsafe_allow_html=True
     )
 
+    prima_ing = None
+    if capital_primas > 400000 or edad_primas > 65:
+        st.warning("⚠️ Nota: cálculos orientativos; pueden no ser acordes a partir de 400.000 € y edades > 65.")
+
+    if edad_primas <= 0 or capital_primas <= 0:
+        st.info("Introduce una edad y un capital válidos para obtener la prima orientativa.")
+    else:
+        prima_ing = prima_orientativa_bilineal(float(edad_primas), float(capital_primas), PRIMA_ING_DF)
+        st.metric("🧾 Prima orientativa (mensual) — Banco", eur(prima_ing))
+
+    st.caption(
+        "Primas orientativas calculadas a 03/12/2025, como ejemplo real de primas de hipotecas con el seguro de ING."
+    )
+
 # ===== DERECHA: ASEGURADORA (NN) =====
 with col_right:
     st.markdown(
@@ -248,33 +260,15 @@ with col_right:
         unsafe_allow_html=True
     )
 
-# Radio + cálculo de primas
-cobertura = st.radio(
-    "Cobertura",
-    options=["Fallecimiento", "Fallecimiento + Invalidez Absoluta"],
-    horizontal=True,
-    key="cobertura_nn"
-)
-
-# Calcula prima ING (banco)
-prima_ing = None
-with col_left:
-    if capital_primas > 400000 or edad_primas > 65:
-        st.warning("⚠️ Nota: cálculos orientativos; pueden no ser acordes a partir de 400.000 € y edades > 65.")
-
-    if edad_primas <= 0 or capital_primas <= 0:
-        st.info("Introduce una edad y un capital válidos para obtener la prima orientativa.")
-    else:
-        prima_ing = prima_orientativa_bilineal(float(edad_primas), float(capital_primas), PRIMA_ING_DF)
-        st.metric("🧾 Prima orientativa (mensual) — Banco", eur(prima_ing))
-
-    st.caption(
-        "Primas orientativas calculadas a 03/12/2025, como ejemplo real de primas de hipotecas con el seguro de ING."
+    # ✅ El input "Cobertura" vive SOLO en el cuadrante derecho
+    cobertura = st.radio(
+        "Cobertura (Aseguradora)",
+        options=["Fallecimiento", "Fallecimiento + Invalidez Absoluta"],
+        horizontal=True,
+        key="cobertura_nn"
     )
 
-# Calcula prima NN (aseguradora)
-prima_nn = None
-with col_right:
+    prima_nn = None
     if edad_primas <= 0 or capital_primas <= 0:
         st.info("Introduce una edad y un capital válidos para obtener la prima orientativa.")
     else:
@@ -303,14 +297,12 @@ monthly_payment_only_vida = float(df_only_vida["Cuota"].iloc[0]) if not df_only_
 ahorro_vida_mes = monthly_payment_base - monthly_payment_only_vida
 ahorro_vida_anual = ahorro_vida_mes * 12
 
-# Ahorro por cambio de aseguradora (prima): ING - NN (mismas edad/capital)
 ahorro_cambio_aseg_mes = None
 ahorro_cambio_aseg_anual = None
 if (prima_ing is not None) and (prima_nn is not None):
     ahorro_cambio_aseg_mes = float(prima_ing - prima_nn)
     ahorro_cambio_aseg_anual = ahorro_cambio_aseg_mes * 12
 
-# Neto: ahorro por prima (banco->aseguradora) - ahorro por bonificación de vida (si pierdes bonificación)
 ahorro_neto_mes = None
 ahorro_neto_anual = None
 if ahorro_cambio_aseg_mes is not None:
