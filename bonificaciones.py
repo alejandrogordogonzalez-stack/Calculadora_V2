@@ -151,26 +151,43 @@ st.caption(
 st.markdown(
     """
     <div style="
-        background:#f5f7fa;
-        border:1px solid #e6e9ef;
-        border-radius:14px;
-        padding:1rem 1.25rem;
+        background:#fff4e6;              /* naranja suave */
+        border:2px solid #f4b183;        /* borde naranja suave */
+        border-radius:16px;
+        padding:1.25rem 1.4rem;
         text-align:center;
         color:#2b2f36;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.05);
-        margin: .75rem 0 1rem 0;
+        box-shadow: 0 10px 26px rgba(0,0,0,0.06);
+        margin: .85rem 0 1.2rem 0;
     ">
-      <div style="font-weight:800; font-size:1.05rem; margin-bottom:.35rem;">
+      <div style="
+        font-weight:900;
+        font-size:1.25rem;              /* más grande */
+        margin-bottom:.6rem;
+        color:#9a4f00;                  /* naranja oscuro */
+        letter-spacing:.2px;
+      ">
         💡 Antes de comparar bonificaciones…
       </div>
-      <div style="font-size:.98rem; line-height:1.45; color:#5f6570;">
-        ¿Sabía que los seguros que firma bonificados suelen ser entre un <strong>30%–40% más caros</strong>
-        que los que no son contratados a través del banco?<br/><br/>
-        Además, los seguros de vida <strong>suben con el paso del tiempo</strong>, pero la bonificación se mantiene
-        <strong>estable</strong>. Por eso, esta diferencia puede hacer que merezca la pena contratar el seguro
-        <strong>por fuera de la entidad bancaria</strong>.<br/><br/>
-        A continuación, verá un ejemplo de <strong>prima orientativa</strong> de entidad bancaria (ING)
-        y, a la derecha, una <strong>prima orientativa</strong> directamente en aseguradora.
+
+      <div style="
+        font-size:1.08rem;              /* texto más grande */
+        line-height:1.6;
+        color:#5a3a13;
+        font-weight:600;
+      ">
+        ¿Sabía que los seguros que firma bonificados suelen ser entre un
+        <span style="font-weight:900; color:#b45309;">30%–40% más caros</span>
+        que los que no son contratados a través del banco?
+        <br/><br/>
+        Además, los seguros de vida <span style="font-weight:900;">suben con el paso del tiempo</span>,
+        pero la bonificación se mantiene <span style="font-weight:900;">estable</span>.
+        Por eso, esta diferencia puede hacer que merezca la pena contratar el seguro
+        <span style="font-weight:900; color:#b45309;">por fuera de la entidad bancaria</span>.
+        <br/><br/>
+        A continuación, verá un ejemplo de <span style="font-weight:900;">prima orientativa</span>
+        de entidad bancaria (ING) y, a la derecha, una <span style="font-weight:900;">prima orientativa</span>
+        directamente en aseguradora.
       </div>
     </div>
     """,
