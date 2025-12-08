@@ -7,7 +7,7 @@ from common import inject_css, euro_input, eur, amortization_schedule, render_fo
 
 inject_css()
 
-st.title("🏠 Simulador de Hipoteca")
+st.title("🏠 Simulador de Hipoteca Fija")
 st.caption(
     "Introduce el importe, el plazo y el interés anual. "
     "El cálculo asume capitalización mensual (interés nominal anual / 12)."
