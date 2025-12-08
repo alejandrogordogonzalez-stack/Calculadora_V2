@@ -51,7 +51,7 @@ with st.form("params_form_bonif", clear_on_submit=False):
         )
     with c5:
         edad_hipoteca = st.number_input(
-            "Edad (años)",
+            "Edad (años) del tomador",
             min_value=0, max_value=99, value=30, step=1, key="edad_bon"
         )
 
