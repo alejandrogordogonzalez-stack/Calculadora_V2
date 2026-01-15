@@ -34,6 +34,16 @@ def safe_int(x, default=0):
     except Exception:
         return default
 
+def _is_nan(x):
+    return isinstance(x, float) and np.isnan(x)
+
+def _ensure_text_state(key: str):
+    """euro_input usa st.text_input -> el estado debe ser string; si hay float/int, convertir."""
+    if key in st.session_state:
+        v = st.session_state[key]
+        if isinstance(v, (int, float, np.floating, np.integer)):
+            st.session_state[key] = f"{float(v):.2f}"
+
 # -----------------------------
 # 1) Hipoteca actual
 # -----------------------------
@@ -46,6 +56,9 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+# Sanitiza por si en alguna sesión anterior quedó como número
+_ensure_text_state("ttf_p_old_eur")
 
 with st.form("form_old_fixed", clear_on_submit=False):
     c1, c2, c3, c4 = st.columns([1.2, 1, 1, 1])
@@ -76,7 +89,7 @@ with st.form("form_old_fixed", clear_on_submit=False):
             help="Ojo: al estar en un formulario, este valor solo se aplica al pulsar 'Calcular hipoteca actual'."
         )
 
-    submitted_old = st.form_submit_button("✅ Calcular hipoteca actual")
+    _ = st.form_submit_button("✅ Calcular hipoteca actual")
 
 n_old = safe_int(Y_old) * 12
 months_paid = min(max(safe_int(months_paid_in), 0), n_old)
@@ -106,8 +119,7 @@ if months_paid == 0:
 elif col_saldo is None:
     saldo_pendiente_old = np.nan
 else:
-    # months_paid=1 -> fila 0 (tras el primer pago)
-    idx = min(months_paid - 1, len(df_old) - 1)
+    idx = min(months_paid - 1, len(df_old) - 1)  # months_paid=1 -> fila 0
     saldo_pendiente_old = float(df_old[col_saldo].iloc[idx])
 
 # Interés restante desde hoy
@@ -116,13 +128,13 @@ if months_paid >= n_old:
 else:
     interes_restante_old = float(df_old[col_int].iloc[months_paid:].sum())
 
-# Métricas hipoteca actual (incluyo meses pagados usados para que se vea claro)
+# Métricas hipoteca actual (incluyo meses pagados usados para depurar)
 mA, mB, mC, mD, mE = st.columns(5)
 mA.metric("💳 Cuota mensual actual", eur(cuota_old))
 mB.metric("🧾 Intereses restantes", eur(interes_restante_old))
 mC.metric("⏱️ Meses restantes", f"{meses_restantes_old}")
 mD.metric("✅ Meses pagados (usados)", f"{months_paid}")
-mE.metric("🏠 Saldo pendiente", "—" if (isinstance(saldo_pendiente_old, float) and np.isnan(saldo_pendiente_old)) else eur(saldo_pendiente_old))
+mE.metric("🏠 Saldo pendiente", "—" if _is_nan(saldo_pendiente_old) else eur(saldo_pendiente_old))
 
 with st.expander("Ver resumen de tu hipoteca actual (detalle)"):
     old_summary = pd.DataFrame({
@@ -144,7 +156,7 @@ with st.expander("Ver resumen de tu hipoteca actual (detalle)"):
             cuota_old,
             interes_total_old,
             interes_restante_old,
-            saldo_pendiente_old if not (isinstance(saldo_pendiente_old, float) and np.isnan(saldo_pendiente_old)) else np.nan
+            saldo_pendiente_old if not _is_nan(saldo_pendiente_old) else np.nan
         ]
     })
     st.dataframe(
@@ -168,49 +180,61 @@ st.markdown(
 )
 
 def _autofill_new_offer():
-    # Rellena importe con saldo pendiente (si lo tenemos) y plazo sugerido con los meses restantes
-    if not (isinstance(saldo_pendiente_old, float) and np.isnan(saldo_pendiente_old)):
-        st.session_state["ttf_p_new_eur"] = float(saldo_pendiente_old)
-    # plazo sugerido: lo que queda, redondeado hacia arriba a años
+    # euro_input -> st.text_input -> guardar STRING
+    if not _is_nan(saldo_pendiente_old):
+        st.session_state["ttf_p_new_eur"] = f"{float(saldo_pendiente_old):.2f}"
     suggested_years = max(1, int(math.ceil(meses_restantes_old / 12))) if meses_restantes_old > 0 else 1
     st.session_state["ttf_y_new"] = suggested_years
+
+# Sanitiza por si quedó guardado como float en alguna ejecución anterior
+_ensure_text_state("ttf_p_new_eur")
 
 cbtn1, cbtn2 = st.columns([1, 3])
 with cbtn1:
     st.button(
         "✨ Autocompletar con saldo pendiente",
         use_container_width=True,
-        on_click=_autofill_new_offer
+        on_click=_autofill_new_offer,
+        key="ttf_btn_autofill"
     )
 with cbtn2:
-    if isinstance(saldo_pendiente_old, float) and np.isnan(saldo_pendiente_old):
-        st.info("No puedo autocompletar el saldo pendiente porque tu amortization_schedule no devuelve la columna de saldo. (Aun así puedes introducir el importe manualmente).")
+    if _is_nan(saldo_pendiente_old):
+        st.info(
+            "No puedo autocompletar el saldo pendiente porque tu amortization_schedule no devuelve la columna de saldo. "
+            "Aun así puedes introducir el importe manualmente."
+        )
 
 with st.form("form_new_offer", clear_on_submit=False):
     c1n, c2n, c3n = st.columns([1.2, 1, 1])
+
     with c1n:
+        # Por seguridad, vuelve a sanitizar justo antes del widget
+        _ensure_text_state("ttf_p_new_eur")
         P_new = euro_input(
             "Importe a financiar en la nueva hipoteca (€)",
             key="ttf_p_new_eur",
-            default=float(saldo_pendiente_old) if not (isinstance(saldo_pendiente_old, float) and np.isnan(saldo_pendiente_old)) else 150000.0,
+            default=float(saldo_pendiente_old) if not _is_nan(saldo_pendiente_old) else 150000.0,
             decimals=2,
             min_value=1000.0
         )
+
     with c2n:
+        Y_new_default = max(1, int(math.ceil(meses_restantes_old / 12))) if meses_restantes_old > 0 else 20
         Y_new = st.slider(
             "Plazo de la nueva hipoteca (años)",
             min_value=1, max_value=40,
-            value=max(1, int(math.ceil(meses_restantes_old / 12))) if meses_restantes_old > 0 else 20,
+            value=int(st.session_state.get("ttf_y_new", Y_new_default)),
             step=1,
             key="ttf_y_new"
         )
+
     with c3n:
         R_new = st.number_input(
             "Tipo fijo de la oferta (% TIN anual)",
             min_value=0.0, max_value=30.0, value=2.50, step=0.05, format="%.2f", key="ttf_r_new"
         )
 
-    submitted_new = st.form_submit_button("🧮 Calcular nueva oferta")
+    _ = st.form_submit_button("🧮 Calcular nueva oferta")
 
 n_new = safe_int(Y_new) * 12
 r_new_m = (R_new / 100.0) / 12.0
@@ -238,12 +262,12 @@ st.divider()
 # -----------------------------
 st.markdown("## 🔥 Comparación rápida")
 
-ref_interest = interes_restante_old
+ref_interest = interes_restante_old  # intereses que te quedan en la actual
 diff_interest = interes_total_new - ref_interest
 diff_cuota = cuota_new - cuota_old
 
 if ref_interest <= 0:
-    st.info("Tu hipoteca actual no tiene intereses restantes (o está finalizada). La comparación principal se centra en la nueva oferta.")
+    st.info("Tu hipoteca actual no tiene intereses restantes (o está finalizada).")
 else:
     ahorro = ref_interest - interes_total_new  # + => ahorro
     ratio = 0.0 if ref_interest == 0 else max(0.0, min(1.0, ahorro / ref_interest))
@@ -285,14 +309,14 @@ cmp_df = pd.DataFrame({
         cuota_old,
         ref_interest,
         meses_restantes_old,
-        saldo_pendiente_old if not (isinstance(saldo_pendiente_old, float) and np.isnan(saldo_pendiente_old)) else np.nan
+        saldo_pendiente_old if not _is_nan(saldo_pendiente_old) else np.nan
     ],
     "Nueva oferta": [cuota_new, interes_total_new, n_new, P_new],
     "Diferencia (nueva - actual)": [
         cuota_new - cuota_old,
         interes_total_new - ref_interest,
         n_new - meses_restantes_old,
-        P_new - (saldo_pendiente_old if not (isinstance(saldo_pendiente_old, float) and np.isnan(saldo_pendiente_old)) else np.nan)
+        P_new - (saldo_pendiente_old if not _is_nan(saldo_pendiente_old) else np.nan)
     ]
 })
 
@@ -305,5 +329,5 @@ st.dataframe(
     use_container_width=True
 )
 
-st.caption("Nota: al estar los inputs dentro de formularios, los cambios se aplican al pulsar cada botón de cálculo.")
+st.caption("Nota: los inputs dentro de formularios se aplican al pulsar cada botón de cálculo.")
 render_footer()
