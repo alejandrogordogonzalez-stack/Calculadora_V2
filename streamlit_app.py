@@ -1,3 +1,4 @@
+# streamlit_app.py (menu actualizado)
 # -*- coding: utf-8 -*-
 import streamlit as st
 
@@ -7,6 +8,7 @@ pages = [
     st.Page("simulador.py", title="Simulador Hipoteca Fija", icon="📊", url_path="simulador"),
     st.Page("trae_tu_fija.py", title="Trae tu hipoteca fija", icon="🔁", url_path="trae_tu_fija"),
     st.Page("simulador_mixta.py", title="Simulador Hipoteca Mixta", icon="📊", url_path="simulador_mixta"),
+    st.Page("trae_tu_mixta.py", title="Trae tu hipoteca mixta", icon="🔁", url_path="trae_tu_mixta"),
     st.Page("bonificaciones.py", title="Estudio Bonificaciones", icon="🎁", url_path="bonificaciones"),
     st.Page("comparador.py", title="Comparador: Fija vs Mixta", icon="📐", url_path="comparador"),
     st.Page("inversion.py", title="Analiza Inversión", icon="💹", url_path="inversion"),
